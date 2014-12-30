@@ -27,7 +27,7 @@ public class EmailUtility {
     properties.setProperty("mail.smtp.port", "587");
     properties.setProperty("mail.smtp.auth", "true");
     properties.setProperty("mail.smtp.user", "emails@dsibtm.com");
-    properties.setProperty("mail.smtp.password", "1IMmJRZ85L8aeupYhl-T5Q");
+    properties.setProperty("mail.smtp.password", "");
   }
   private static final Map<String, String> headers = new HashMap<>();
   static {
