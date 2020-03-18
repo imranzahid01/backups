@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<backups>
+  <databases>
+    <meta>
+      <name>BTM-Research 17-1 Backups</name>
+      <base>E:\SQLServerMaintenance\Daily\</base>
+      <cron>0 0 4 1/1 * ? *</cron>
+      <fileformat>
+        <template>%s-%s.bak</template>
+        <params>
+          <param ordinal="1">DB_NAME</param>
+          <param ordinal="2" pattern="yyyyMMdd-HHmm">TIMESTAMP</param>
+        </params>
+      </fileformat>
+      <grouping>
+        <group>DB_NAME</group>
+      </grouping>
+      <keep />
+      <emails />
+      <healthcheck />
+      <server>
+        <host>daedalus-17-1</host>
+        <port>49170</port>
+        <instance>SQLSERVER</instance>
+        <user>btmbackups</user>
+        <password>daedalus</password>
+      </server>
+    </meta>
+
+    <database>
+      <name>BTM-Carolina</name>
+      <location>BTM-SupplyManagement\</location>
+      <compression>zip</compression>
+    </database>
+    <database>
+      <name>btmresearch</name>
+      <location>BTM-Research\</location>
+      <compression>zip</compression>
+      <grouping>
+        <group>none</group>
+      </grouping>
+    </database>
+  </databases>
+</backups>

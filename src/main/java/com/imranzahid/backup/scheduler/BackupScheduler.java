@@ -27,8 +27,6 @@ import java.util.UUID;
 
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.JobBuilder.newJob;
-import static org.quartz.SimpleScheduleBuilder.repeatSecondlyForTotalCount;
-import static org.quartz.SimpleScheduleBuilder.repeatSecondlyForever;
 import static org.quartz.TriggerBuilder.newTrigger;
 import static org.quartz.impl.matchers.GroupMatcher.jobGroupEquals;
 
@@ -69,7 +67,6 @@ public class BackupScheduler {
     ImmutableMap<ScheduleType, Schedule> schedules = null;
     try {
       Databases databases = null;
-      //Folders folders = null;
       String xmlFile = System.getProperty("backups");
       SAXBuilder saxBuilder = new SAXBuilder();
       Document document = saxBuilder.build(new File(xmlFile));
@@ -82,11 +79,6 @@ public class BackupScheduler {
         databases = new Databases();
         parseDatabasesJob(databases, databasesElement);
       }
-      /*Element foldersElement = rootElement.getChild("folders");
-      if (foldersElement != null) {
-        folders = new Folders();
-        parseFoldersJob(folders, foldersElement);
-      }*/
       ImmutableMap.Builder<ScheduleType, Schedule> scheduleBuilder = new ImmutableMap.Builder<>();
       if (databases != null) {
         Schedule schedule = new Schedule(UUID.randomUUID().toString());
@@ -96,14 +88,6 @@ public class BackupScheduler {
         schedule.setData(databases);
         scheduleBuilder.put(ScheduleType.DATABASE, schedule);
       }
-      /*if (folders != null) {
-        Schedule schedule = new Schedule(UUID.randomUUID().toString());
-        schedule.setName(folders.getName());
-        schedule.setCron(folders.getCron());
-        schedule.setForced(false);
-        schedule.setData(folders);
-        scheduleBuilder.put(ScheduleType.FOLDER, schedule);
-      }*/
       schedules = Maps.immutableEnumMap(scheduleBuilder.build());
     }
     catch (JDOMException | IOException e) {
@@ -111,8 +95,6 @@ public class BackupScheduler {
     }
     if (schedules != null) {
       schedule(BackupDatabaseJob.class, schedules.get(ScheduleType.DATABASE));
-      //schedule(BackUpFolderJob.class, schedules.get(ScheduleType.FOLDER));
-      //schedule(BackupDebugJob.class, schedules.get(ScheduleType.DEBUG));
     }
   }
 
@@ -154,13 +136,14 @@ public class BackupScheduler {
         }
       }
     }
+    databases.setHealthCheckUuid(metaElement.getChildTextNormalize("healthcheck"));
     Element serverElement = metaElement.getChild("server");
     Databases.Server server = databases.newServer();
     server.setHost(serverElement.getChildTextNormalize("host"));
     server.setPort(serverElement.getChildTextNormalize("port"));
     server.setInstance(serverElement.getChildTextNormalize("instance"));
     server.setUser(serverElement.getChildTextNormalize("user"));
-    server.setPass(serverElement.getChildTextNormalize("pass"));
+    server.setPass(serverElement.getChildTextNormalize("password"));
 
     List<Element> databaseElements = databasesElement.getChildren("database");
     if (databaseElements != null) {
@@ -168,6 +151,15 @@ public class BackupScheduler {
         Databases.Database database = databases.newDatabase(databaseElement.getChildTextNormalize("name"));
         database.setLocation(databaseElement.getChildTextNormalize("location"));
         database.setCompression(databaseElement.getChildTextNormalize("compression"));
+        Element databaseGroupingElement = databaseElement.getChild("grouping");
+        if (databaseGroupingElement != null) {
+          List<Element> groups = databaseGroupingElement.getChildren("group");
+          if (groups != null) {
+            for (Element group : groups) {
+              databases.getGroupings().add(group.getTextNormalize());
+            }
+          }
+        }
         databases.getDatabases().add(database);
       }
     }
@@ -195,8 +187,7 @@ public class BackupScheduler {
       Trigger backupTrigger = newTrigger()
           .withIdentity(triggerName, "backup")
           .withDescription(triggerName)
-          //.withSchedule(cronSchedule(schedule.getCron()))
-          .withSchedule(repeatSecondlyForTotalCount(1, 5))
+          .withSchedule(cronSchedule(schedule.getCron()))
           .build();
       backupTrigger.getJobDataMap().put("guid", schedule.getGuid());
       backupTrigger.getJobDataMap().put("cron", schedule.getCron());

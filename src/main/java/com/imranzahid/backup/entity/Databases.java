@@ -1,14 +1,8 @@
 package com.imranzahid.backup.entity;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.collect.Iterables;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * @author imranzahid Date: 12/25/14 Time: 5:16 PM
@@ -22,11 +16,11 @@ public class Databases implements JobsData {
   private static final int MONTH = 30 * DAY;
   private static final int YEAR = 54 * WEEK;
 
-  public class Database {
+  public static class Database {
     private String name;
     private String location;
     private String compression;
-    private List<String> groupings = new ArrayList<>();
+    private final List<String> groupings = new ArrayList<>();
 
     public String getName() {
       return name;
@@ -53,11 +47,7 @@ public class Databases implements JobsData {
     }
 
     public List<String> getGroupings() {
-      Optional<String> none = Iterables.tryFind(groupings, new Predicate<String>() {
-        @Override public boolean apply(String input) {
-          return Objects.requireNonNull(input, "Grouping cannot be null").equalsIgnoreCase("NONE");
-        }
-      });
+      Optional<String> none = groupings.stream().filter(g -> g != null && g.equalsIgnoreCase("NONE")).findFirst();
       if (none.isPresent()) {
         return Collections.emptyList();
       }
@@ -69,7 +59,7 @@ public class Databases implements JobsData {
     }
   }
 
-  public class FileFormatParam {
+  public static class FileFormatParam {
     private int ordinal;
     private String pattern;
     private String param;
@@ -99,9 +89,9 @@ public class Databases implements JobsData {
     }
   }
 
-  public class FileFormat {
+  public static class FileFormat {
     private String template;
-    private List<FileFormatParam> params = new ArrayList<>();
+    private final List<FileFormatParam> params = new ArrayList<>();
 
     public String getTemplate() {
       return template;
@@ -130,7 +120,7 @@ public class Databases implements JobsData {
     }
   }
 
-  public class Server {
+  public static class Server {
     private String host;
     private int port;
     private String instance;
@@ -186,11 +176,12 @@ public class Databases implements JobsData {
   private String base;
   private String cron;
   private FileFormat fileFormat;
-  private List<String> groupings = new ArrayList<>();
+  private final List<String> groupings = new ArrayList<>();
   private String keep;
-  private List<String> emails = new ArrayList<>();
+  private final List<String> emails = new ArrayList<>();
+  private String healthCheckUuid;
   private Server server;
-  private List<Database> databases = new ArrayList<>();
+  private final List<Database> databases = new ArrayList<>();
 
   @Override public String getName() {
     return name;
@@ -226,11 +217,7 @@ public class Databases implements JobsData {
   }
 
   public List<String> getGroupings() {
-    Optional<String> none = Iterables.tryFind(groupings, new Predicate<String>() {
-      @Override public boolean apply(String input) {
-        return Objects.requireNonNull(input, "Grouping cannot be null").equalsIgnoreCase("NONE");
-      }
-    });
+    Optional<String> none = groupings.stream().filter(g -> g != null && g.equalsIgnoreCase("NONE")).findFirst();
     if (none.isPresent()) {
       return Collections.emptyList();
     }
@@ -267,7 +254,7 @@ public class Databases implements JobsData {
     try {
       int num = Integer.parseInt(number.toString());
       switch(unit.toString()) {
-        case "S": case "s": return num * DAY;
+        case "S": case "s": return num * SECOND;
         case "m":           return num * MINUTE;
         case "h": case "H": return num * HOUR;
         case "D": case "d": return num * DAY;
@@ -281,6 +268,14 @@ public class Databases implements JobsData {
 
   @Override public List<String> getEmails() {
     return emails;
+  }
+
+  @Override public String getHealthCheckUuid() {
+    return healthCheckUuid;
+  }
+
+  public void setHealthCheckUuid(String healthCheckUuid) {
+    this.healthCheckUuid = healthCheckUuid;
   }
 
   public Server getServer() {

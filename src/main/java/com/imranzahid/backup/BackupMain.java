@@ -1,7 +1,6 @@
 package com.imranzahid.backup;
 
 import com.imranzahid.backup.scheduler.BackupScheduler;
-import com.imranzahid.backup.util.EmailUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +25,6 @@ public class BackupMain {
     }
 
     if (BackupScheduler.getInstance().hasInit()) {
-      log.info("Starting scheduler");
-      EmailUtility.sendEmail("izahid@dsibtm.com", "Backup Scheduler", "Starting scheduler");
       BackupScheduler.getInstance().startScheduler();
     }
   }
