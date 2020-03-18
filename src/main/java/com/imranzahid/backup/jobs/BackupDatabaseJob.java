@@ -5,9 +5,9 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
-import com.imranzahid.backup.entity.Databases;
+import com.imranzahid.backup.entity.*;
 import com.imranzahid.backup.util.HealthCheckUtil;
-import net.lingala.zip4j.core.ZipFile;
+import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import net.lingala.zip4j.model.ZipParameters;
 import org.quartz.DisallowConcurrentExecution;
@@ -49,7 +49,7 @@ public class BackupDatabaseJob implements Job {
     try {
       Stopwatch stopwatch = Stopwatch.createStarted();
       StringBuilder messages = new StringBuilder();
-      for (Databases.Database database : databases.getDatabases()) {
+      for (Database database : databases.getDatabases()) {
         messages.append(backup(databases, database)).append("\n");
       }
       healthCheckUtil.success("Database Backup Job completed in: " + stopwatch.stop().elapsed(TimeUnit.MINUTES) +
@@ -65,21 +65,20 @@ public class BackupDatabaseJob implements Job {
     }
   }
 
-  @Nonnull private String backup(@Nonnull Databases databases, @Nonnull final Databases.Database database) throws Exception {
-    Connection con = getConnection(databases.getServer(), database);
+  @Nonnull private String backup(@Nonnull Databases databases, @Nonnull final Database database) throws Exception {
     String sqlTemplate = "BACKUP DATABASE [%s] TO DISK = N'%s' WITH NOFORMAT, NOINIT, NAME = N'%s-Full Database " +
-        "Backup', SKIP, NOREWIND, NOUNLOAD,  STATS = 10";
+      "Backup', SKIP, NOREWIND, NOUNLOAD, STATS = 10";
 
     String base = databases.getBase();
     if (!base.endsWith(File.separator)) {
       base += File.separator;
     }
     String fileName;
-    Databases.FileFormat fileFormat = databases.getFileFormat();
+    FileFormat fileFormat = databases.getFileFormat();
     if (fileFormat != null) {
       String fileFormatTemplate = fileFormat.getTemplate();
-      List<Databases.FileFormatParam> params = fileFormat.getParams();
-      params.sort(Comparator.comparingInt(Databases.FileFormatParam::getOrdinal));
+      List<FileFormatParam> params = fileFormat.getParams();
+      params.sort(Comparator.comparingInt(FileFormatParam::getOrdinal));
       List<String> transform = params.stream().map(input -> {
         switch (input.getParam().toUpperCase()) {
           case "DB_NAME":
@@ -88,7 +87,7 @@ public class BackupDatabaseJob implements Job {
             return new SimpleDateFormat(input.getPattern()).format(new Date());
         }
         return null;
-      }).collect(Collectors.toList());
+      }).filter(Objects::nonNull).collect(Collectors.toList());
       fileName = String.format(fileFormatTemplate, Iterables.toArray(transform, Object.class));
     }
     else {
@@ -123,16 +122,15 @@ public class BackupDatabaseJob implements Job {
     Files.createParentDirs(new File(backupFile));
     String sql = String.format(sqlTemplate, database.getName(), backupFile, database.getName());
     log.info(sql);
+    Connection con = getConnection(databases.getServer(), database);
     Statement st = con.createStatement();
     st.execute(sql);
     closeConnections(st, con);
     StringBuilder message = new StringBuilder();
     message.append(String.format("Database %s is backed up to %s, fileSize = %s", database.getName(), backupFile,
                                  humanReadableByteCount(new File(backupFile).length())));
-    if (!Strings.isNullOrEmpty(database.getCompression())) {
-      if ("zip".equals(database.getCompression().toLowerCase())) {
-        message.append(zipFile(backupFile));
-      }
+    if ("zip".equalsIgnoreCase(database.getCompression())) {
+      message.append(zipFile(backupFile));
     }
     message.append(removeOldFiles(databases.getKeepFor(), base + location));
     return message.toString();
@@ -163,14 +161,23 @@ public class BackupDatabaseJob implements Job {
   }
 
   private String zipFile(String backupFile) throws ZipException {
-    String zipFileName = Files.getNameWithoutExtension(backupFile) + ".zip";
+    File sourceFile = new File(backupFile);
+    String zipFileName = getNameWithoutExtension(backupFile) + ".zip";
     File file = new File(zipFileName);
     ZipFile zipFile = new ZipFile(file);
-    zipFile.addFile(new File(backupFile), new ZipParameters());
+    zipFile.addFile(sourceFile, new ZipParameters());
+    if (!sourceFile.delete()) {
+      log.error("Unable to delete source file " + backupFile + " after zipping it to " + zipFileName);
+    }
     return String.format(", compressed to %s (%s)", zipFileName, humanReadableByteCount(file.length()));
   }
 
-  private Connection getConnection(Databases.Server server, Databases.Database database) throws Exception {
+  @Nonnull private String getNameWithoutExtension(@Nonnull String fileName) {
+    int dotIndex = fileName.lastIndexOf('.');
+    return (dotIndex == -1) ? fileName : fileName.substring(0, dotIndex);
+  }
+
+  private Connection getConnection(Server server, Database database) throws Exception {
     Class.forName("net.sourceforge.jtds.jdbc.Driver");
     String dbUrl = String.format("jdbc:jtds:sqlserver://%s:%d/%s;", server.getHost(), server.getPort(),
                                  database.getName());

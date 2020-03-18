@@ -23,6 +23,9 @@ public class HealthCheckUtil {
   }
 
   public void start() {
+    if (uuid == null || uuid.isBlank()) {
+      return;
+    }
     Request request = new Request.Builder()
       .url(getUrl() + "/start").build();
     execute(request);
@@ -33,6 +36,9 @@ public class HealthCheckUtil {
   }
 
   public void success(String message) {
+    if (uuid == null || uuid.isBlank()) {
+      return;
+    }
     Request.Builder request = new Request.Builder().url(getUrl());
     if (message != null && !message.isBlank()) {
       request.post(RequestBody.create(message, MediaType.parse("text/plain")));
@@ -45,6 +51,9 @@ public class HealthCheckUtil {
   }
 
   public void fail(String message) {
+    if (uuid == null || uuid.isBlank()) {
+      return;
+    }
     Request.Builder request = new Request.Builder().url(getUrl() + "/fail");
     if (message != null && !message.isBlank()) {
       request.post(RequestBody.create(message, MediaType.parse("text/plain")));

@@ -2,9 +2,7 @@ package com.imranzahid.backup.scheduler;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.imranzahid.backup.entity.Databases;
-import com.imranzahid.backup.entity.Schedule;
-import com.imranzahid.backup.entity.ScheduleType;
+import com.imranzahid.backup.entity.*;
 import com.imranzahid.backup.jobs.BackupDatabaseJob;
 import com.imranzahid.backup.listeners.BackupJobListener;
 import com.imranzahid.backup.listeners.BackupSchedulerListener;
@@ -104,7 +102,7 @@ public class BackupScheduler {
     databases.setBase(metaElement.getChildTextNormalize("base"));
     databases.setCron(metaElement.getChildTextNormalize("cron"));
     Element fileformatElement = metaElement.getChild("fileformat");
-    Databases.FileFormat fileFormat = databases.newFileFormat();
+    FileFormat fileFormat = databases.newFileFormat();
     fileFormat.setTemplate(fileformatElement.getChildTextNormalize("template"));
     Element paramsElement = fileformatElement.getChild("params");
     if (paramsElement != null) {
@@ -117,15 +115,7 @@ public class BackupScheduler {
         }
       }
     }
-    Element groupingElement = metaElement.getChild("grouping");
-    if (groupingElement != null) {
-      List<Element> groups = groupingElement.getChildren("group");
-      if (groups != null) {
-        for (Element group : groups) {
-          databases.getGroupings().add(group.getTextNormalize());
-        }
-      }
-    }
+    parseGroupings(databases, metaElement.getChild("grouping"));
     databases.setKeep(metaElement.getChildTextNormalize("keep"));
     Element emailsElement = metaElement.getChild("emails");
     if (emailsElement != null) {
@@ -138,7 +128,7 @@ public class BackupScheduler {
     }
     databases.setHealthCheckUuid(metaElement.getChildTextNormalize("healthcheck"));
     Element serverElement = metaElement.getChild("server");
-    Databases.Server server = databases.newServer();
+    Server server = databases.newServer();
     server.setHost(serverElement.getChildTextNormalize("host"));
     server.setPort(serverElement.getChildTextNormalize("port"));
     server.setInstance(serverElement.getChildTextNormalize("instance"));
@@ -148,24 +138,27 @@ public class BackupScheduler {
     List<Element> databaseElements = databasesElement.getChildren("database");
     if (databaseElements != null) {
       for (Element databaseElement : databaseElements) {
-        Databases.Database database = databases.newDatabase(databaseElement.getChildTextNormalize("name"));
+        Database database = databases.newDatabase(databaseElement.getChildTextNormalize("name"));
         database.setLocation(databaseElement.getChildTextNormalize("location"));
         database.setCompression(databaseElement.getChildTextNormalize("compression"));
-        Element databaseGroupingElement = databaseElement.getChild("grouping");
-        if (databaseGroupingElement != null) {
-          List<Element> groups = databaseGroupingElement.getChildren("group");
-          if (groups != null) {
-            for (Element group : groups) {
-              databases.getGroupings().add(group.getTextNormalize());
-            }
-          }
-        }
+        parseGroupings(database, databaseElement.getChild("grouping"));
         databases.getDatabases().add(database);
       }
     }
   }
 
+  private void parseGroupings(Groupings entity, Element groupingElement) {
+    if (groupingElement != null) {
+      List<Element> groups = groupingElement.getChildren("group");
+      if (groups != null) {
+        for (Element group : groups) {
+          entity.getGroupings().add(group.getTextNormalize());
+        }
+      }
+    }
+  }
 
+  @SuppressWarnings("SameParameterValue")
   private void schedule(Class<? extends Job> clazz, @Nullable Schedule schedule) {
     if (schedule == null) {
       return;

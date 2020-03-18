@@ -4,7 +4,7 @@
     <meta>
       <name>BTM-Research 17-1 Backups</name>
       <base>E:\SQLServerMaintenance\Daily\</base>
-      <cron>0 0 4 1/1 * ? *</cron>
+      <cron>0 0/1 * 1/1 * ? *</cron>
       <fileformat>
         <template>%s-%s.bak</template>
         <params>
