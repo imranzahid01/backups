@@ -15,7 +15,7 @@
       <grouping>
         <group>DB_NAME</group>
       </grouping>
-      <keep />
+      <keep>1d</keep>
       <emails />
       <healthcheck />
       <server>

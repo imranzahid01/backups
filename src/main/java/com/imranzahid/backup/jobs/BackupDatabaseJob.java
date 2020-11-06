@@ -112,7 +112,7 @@ public class BackupDatabaseJob implements Job {
       groupings = Collections.emptyList();
     }
     for (String grouping : groupings) {
-      if ("DB_NAME".equals(grouping.toUpperCase())) {
+      if ("DB_NAME".equalsIgnoreCase(grouping)) {
         location.append(database.getName());
       }
       location.append(File.separatorChar);

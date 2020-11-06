@@ -96,7 +96,7 @@ public class Databases implements JobsData, Groupings {
       }
     }
     try {
-      int num = Integer.parseInt(number.toString());
+      long num = Long.parseLong(number.toString());
       switch(unit.toString()) {
         case "S": case "s": return num * SECOND;
         case "m":           return num * MINUTE;
