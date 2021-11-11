@@ -1,33 +1,26 @@
 package com.imranzahid.backup.entity;
 
-import com.google.common.base.Strings;
+import com.imranzahid.backup.util.Strings;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /**
  * @author imranzahid Date: 12/25/14 Time: 5:16 PM
  */
-public class Databases implements JobsData, Groupings {
-  private static final int SECOND = 60;
-  private static final int MINUTE = 60 * SECOND;
-  private static final int HOUR = 60 * MINUTE;
-  private static final int DAY = 24 * HOUR;
-  private static final int WEEK = 7 * DAY;
-  private static final int MONTH = 30 * DAY;
-  private static final int YEAR = 54 * WEEK;
-
+public class Databases {
   private String name;
   private String base;
-  private String cron;
   private FileFormat fileFormat;
-  private final List<String> groupings = new ArrayList<>();
   private String keep;
   private final List<String> emails = new ArrayList<>();
   private String healthCheckUuid;
-  private Server server;
+  private DatabaseServer databaseServer;
   private final List<Database> databases = new ArrayList<>();
+  private SftpServer sftpServer;
 
-  @Override public String getName() {
+  public String getName() {
     return name;
   }
 
@@ -43,14 +36,6 @@ public class Databases implements JobsData, Groupings {
     this.base = base;
   }
 
-  @Override public String getCron() {
-    return cron;
-  }
-
-  public void setCron(String cron) {
-    this.cron = cron;
-  }
-
   public FileFormat getFileFormat() {
     return fileFormat;
   }
@@ -58,18 +43,6 @@ public class Databases implements JobsData, Groupings {
   public FileFormat newFileFormat() {
     this.fileFormat = new FileFormat();
     return this.fileFormat;
-  }
-
-  @Override public List<String> getGroupings() {
-    Optional<String> none = groupings.stream().filter(g -> g != null && g.equalsIgnoreCase("NONE")).findFirst();
-    if (none.isPresent()) {
-      return Collections.emptyList();
-    }
-    return groupings;
-  }
-
-  public boolean groupingsUsed() {
-    return groupings.size() > 0;
   }
 
   public String getKeep() {
@@ -95,26 +68,30 @@ public class Databases implements JobsData, Groupings {
         unit.append(ch);
       }
     }
+    Duration duration;
     try {
       long num = Long.parseLong(number.toString());
       switch(unit.toString()) {
-        case "S": case "s": return num * SECOND;
-        case "m":           return num * MINUTE;
-        case "h": case "H": return num * HOUR;
-        case "D": case "d": return num * DAY;
-        case "w": case "W": return num * WEEK;
-        case "M":           return num * MONTH;
-        case "y": case "Y": return num * YEAR;
+        case "S": case "s": duration = Duration.ofSeconds(num); break;
+        case "m":           duration = Duration.ofMinutes(num); break;
+        case "h": case "H": duration = Duration.ofHours(num); break;
+        case "D": case "d": duration = Duration.ofDays(num); break;
+        case "w": case "W": duration = ChronoUnit.WEEKS.getDuration(); break;
+        case "M":           duration = ChronoUnit.MONTHS.getDuration(); break;
+        case "y": case "Y": duration = ChronoUnit.YEARS.getDuration(); break;
+        default : duration = Duration.ZERO; break;
       }
-    } catch (NumberFormatException ignored) { }
-    return -1;
+    } catch (NumberFormatException ignored) {
+      duration = Duration.ZERO;
+    }
+    return duration.toMillis();
   }
 
-  @Override public List<String> getEmails() {
+  public List<String> getEmails() {
     return emails;
   }
 
-  @Override public String getHealthCheckUuid() {
+  public String getHealthCheckUuid() {
     return healthCheckUuid;
   }
 
@@ -122,13 +99,22 @@ public class Databases implements JobsData, Groupings {
     this.healthCheckUuid = healthCheckUuid;
   }
 
-  public Server getServer() {
-    return server;
+  public DatabaseServer getDatabaseServer() {
+    return databaseServer;
   }
 
-  public Server newServer() {
-    this.server = new Server();
-    return this.server;
+  public DatabaseServer newDatabaseServer() {
+    this.databaseServer = new DatabaseServer();
+    return this.databaseServer;
+  }
+
+  public SftpServer getSftpServer() {
+    return sftpServer;
+  }
+
+  public SftpServer newSftpServer() {
+    this.sftpServer = new SftpServer();
+    return this.sftpServer;
   }
 
   public List<Database> getDatabases() {

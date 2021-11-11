@@ -4,7 +4,10 @@ import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HealthCheckUtil {
+import java.io.Closeable;
+import java.io.IOException;
+
+public class HealthCheckUtil implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(HealthCheckUtil.class);
   private static final String BASE_URL = "https://hc-ping.com/";
   private static final OkHttpClient httpClient = new OkHttpClient();
@@ -31,10 +34,6 @@ public class HealthCheckUtil {
     execute(request);
   }
 
-  public void success() {
-    success("");
-  }
-
   public void success(String message) {
     if (uuid == null || uuid.isBlank()) {
       return;
@@ -44,10 +43,6 @@ public class HealthCheckUtil {
       request.post(RequestBody.create(message, MediaType.parse("text/plain")));
     }
     execute(request.build());
-  }
-
-  public void fail() {
-    fail("");
   }
 
   public void fail(String message) {
@@ -78,6 +73,14 @@ public class HealthCheckUtil {
     }
     catch (Exception ex) {
       log.error("Unable to execute httpCall", ex);
+    }
+  }
+
+  @Override public void close() throws IOException {
+    httpClient.dispatcher().executorService().shutdown();
+    httpClient.connectionPool().evictAll();
+    if (httpClient.cache() != null) {
+      httpClient.cache().close();
     }
   }
 }

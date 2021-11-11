@@ -1,6 +1,6 @@
 package com.imranzahid.backup.entity;
 
-public class Server {
+public class DatabaseServer {
   private String host;
   private int port;
   private String instance;

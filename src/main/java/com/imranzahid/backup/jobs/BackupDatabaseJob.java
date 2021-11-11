@@ -1,24 +1,17 @@
 package com.imranzahid.backup.jobs;
 
-import com.google.common.base.Stopwatch;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
-import com.google.common.io.Files;
 import com.imranzahid.backup.entity.*;
-import com.imranzahid.backup.util.HealthCheckUtil;
+import com.imranzahid.backup.util.*;
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import net.lingala.zip4j.model.ZipParameters;
-import org.quartz.DisallowConcurrentExecution;
-import org.quartz.Job;
-import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -27,51 +20,67 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * @author imranzahid Date: 12/25/14 Time: 4:40 PM
  */
-@DisallowConcurrentExecution
-public class BackupDatabaseJob implements Job {
+public class BackupDatabaseJob {
   private static final Logger log = LoggerFactory.getLogger(BackupDatabaseJob.class);
   private static final DateFormat SQL_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SS");
   private static final String TAG = "BackupDatabaseJob";
+  private static final String SQL_TEMPLATE =
+    "BACKUP DATABASE [%s] TO DISK = N'%s' WITH NOFORMAT, NOINIT, " +
+    "NAME = N'%s-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, COMPRESSION";
+  private static final String FILE_SEPERATOR = File.separator;
 
-  @Override public void execute(JobExecutionContext context) throws JobExecutionException {
+  public void execute(Databases databases) {
     Calendar currentTime = Calendar.getInstance();
-    String guid = context.getMergedJobDataMap().getString("guid");
     String lastRunOn = SQL_FORMAT.format(currentTime.getTime());
     log.info(TAG + " is executing for at " + lastRunOn);
-    Databases databases = (Databases) context.getMergedJobDataMap().get("jobsData");
     HealthCheckUtil healthCheckUtil = HealthCheckUtil.getInstance(databases.getHealthCheckUuid());
     healthCheckUtil.start();
-    try {
-      Stopwatch stopwatch = Stopwatch.createStarted();
-      StringBuilder messages = new StringBuilder();
-      for (Database database : databases.getDatabases()) {
-        messages.append(backup(databases, database)).append("\n");
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    StringBuilder success = new StringBuilder();
+    StringBuilder fail = new StringBuilder();
+    for (Database database : databases.getDatabases()) {
+      Response backup = backup(databases, database);
+      if (backup.fail) {
+        fail.append(backup.message).append("\n");
       }
-      healthCheckUtil.success("Database Backup Job completed in: " + stopwatch.stop().elapsed(TimeUnit.MINUTES) +
-                              "minutes with message:\n" + messages.toString());
+      else {
+        success.append(backup.message).append("\n");
+      }
     }
-    catch (Exception e) {
-      Throwable rootCause = Throwables.getRootCause(e);
-      log.error("Unable to execute Database Backup Job: " + guid, rootCause);
-      JobExecutionException e2 = new JobExecutionException(rootCause);
-      e2.setUnscheduleAllTriggers(true);
-      healthCheckUtil.fail("Unable to execute Database Backup Job: " + rootCause.getMessage());
-      throw e2;
+    String message = "Database Backup Job completed in: " +
+      stopwatch.stop().elapsed(TimeUnit.MINUTES) + " mins with message:\n";
+    if (fail.length() > 0) {
+      healthCheckUtil.fail(message + fail + "\n\n" + success);
     }
+    else {
+      healthCheckUtil.success(message + success);
+    }
+    try {
+      healthCheckUtil.close();
+    } catch (IOException ignored) { }
   }
 
-  @Nonnull private String backup(@Nonnull Databases databases, @Nonnull final Database database) throws Exception {
-    String sqlTemplate = "BACKUP DATABASE [%s] TO DISK = N'%s' WITH NOFORMAT, NOINIT, NAME = N'%s-Full Database " +
-      "Backup', SKIP, NOREWIND, NOUNLOAD, STATS = 10";
+  @Nonnull private Response backup(@Nonnull Databases databases, @Nonnull final Database database) {
+    final Response response = new Response();
+    try {
+      response.fail = false;
+      response.message = doBackup(databases, database);
+    }
+    catch (Exception ex) {
+      response.fail = true;
+      response.message = ex.toString();
+    }
+    return response;
+  }
 
+  @Nonnull private String doBackup(@Nonnull Databases databases, @Nonnull final Database database) throws Exception {
     String base = databases.getBase();
-    if (!base.endsWith(File.separator)) {
-      base += File.separator;
+    if (!base.endsWith(FILE_SEPERATOR)) {
+      base += FILE_SEPERATOR;
     }
     String fileName;
     FileFormat fileFormat = databases.getFileFormat();
@@ -79,7 +88,7 @@ public class BackupDatabaseJob implements Job {
       String fileFormatTemplate = fileFormat.getTemplate();
       List<FileFormatParam> params = fileFormat.getParams();
       params.sort(Comparator.comparingInt(FileFormatParam::getOrdinal));
-      List<String> transform = params.stream().map(input -> {
+      Object[] transform = params.stream().map(input -> {
         switch (input.getParam().toUpperCase()) {
           case "DB_NAME":
             return database.getName();
@@ -87,8 +96,8 @@ public class BackupDatabaseJob implements Job {
             return new SimpleDateFormat(input.getPattern()).format(new Date());
         }
         return null;
-      }).filter(Objects::nonNull).collect(Collectors.toList());
-      fileName = String.format(fileFormatTemplate, Iterables.toArray(transform, Object.class));
+      }).filter(Objects::nonNull).toArray(String[]::new);
+      fileName = String.format(fileFormatTemplate, transform);
     }
     else {
       fileName = database.getName() + ".bak";
@@ -97,52 +106,99 @@ public class BackupDatabaseJob implements Job {
     StringBuilder location = new StringBuilder();
     if (!Strings.isNullOrEmpty(database.getLocation())) {
       location.append(database.getLocation());
-      if (!database.getLocation().endsWith(File.separator)) {
-        location.append(File.separatorChar);
+      if (!database.getLocation().endsWith(FILE_SEPERATOR)) {
+        location.append(FILE_SEPERATOR);
       }
-    }
-    List<String> groupings;
-    if (database.groupingsUsed()) {
-      groupings = database.getGroupings();
-    }
-    else if (databases.groupingsUsed()) {
-      groupings = databases.getGroupings();
-    }
-    else {
-      groupings = Collections.emptyList();
-    }
-    for (String grouping : groupings) {
-      if ("DB_NAME".equalsIgnoreCase(grouping)) {
-        location.append(database.getName());
-      }
-      location.append(File.separatorChar);
+      location.append(database.getName()).append(FILE_SEPERATOR);
     }
 
     String backupFile = base + location + fileName;
     Files.createParentDirs(new File(backupFile));
-    String sql = String.format(sqlTemplate, database.getName(), backupFile, database.getName());
+    String sql = String.format(SQL_TEMPLATE, database.getName(), backupFile, database.getName());
     log.info(sql);
-    Connection con = getConnection(databases.getServer(), database);
+    Connection con = getConnection(databases.getDatabaseServer(), database);
     Statement st = con.createStatement();
     st.execute(sql);
     closeConnections(st, con);
     StringBuilder message = new StringBuilder();
-    message.append(String.format("Database %s is backed up to %s, fileSize = %s", database.getName(), backupFile,
-                                 humanReadableByteCount(new File(backupFile).length())));
+    File backedupFile = new File(backupFile);
+    String msg1 = String.format("Database %s is backed up to %s, fileSize = %s", database.getName(), backupFile,
+                                humanReadableByteCount(backedupFile.length()));
+    log.info(msg1);
+    message.append(msg1);
     if ("zip".equalsIgnoreCase(database.getCompression())) {
-      message.append(zipFile(backupFile));
+      backedupFile = zipFile(backupFile);
+      String msg2 = String.format(", compressed to %s (%s)", backedupFile.getName(),
+                                  humanReadableByteCount(backedupFile.length()));
+      log.info(msg2);
+      message.append(msg2);
     }
-    message.append(removeOldFiles(databases.getKeepFor(), base + location));
+    String msg3 = removeOldFiles(databases.getKeepFor(), base + location);
+    if (!msg3.isBlank()) log.info(msg3);
+    message.append(msg3);
+    SftpServer sftpServer = databases.getSftpServer();
+    if (sftpServer != null) {
+      String msg4 = uploadFile(sftpServer, backedupFile, databases.getName(),
+                               location.toString(), database.getName());
+      log.info(msg4);
+      message.append(". ").append(msg4);
+    }
     return message.toString();
   }
 
-  private String removeOldFiles(final long keep, String location) {
+  @Nonnull private String uploadFile(@Nonnull SftpServer sftpServer, @Nonnull File sourceFile,
+                                     @Nonnull final String name, @Nullable String location,
+                                     @Nonnull final String databaseName) {
+    SftpClient sftp = new SftpClient(sftpServer);
+    if (!sftp.connect()) {
+      return "Unable to connect";
+    }
+    String path;
+    FileFormat pathFormat = sftpServer.getPathFormat();
+    if (pathFormat != null) {
+      String template = pathFormat.getTemplate();
+      List<FileFormatParam> params = pathFormat.getParams();
+      params.sort(Comparator.comparingInt(FileFormatParam::getOrdinal));
+      Object[] transform = params.stream().map(input -> {
+        switch (input.getParam().toUpperCase()) {
+          case "NAME":
+            return name;
+          case "LOCATION":
+            return location != null ? location.replaceAll("\\\\", "/") : "";
+          case "DB_NAME":
+            return databaseName;
+        }
+        return null;
+      }).filter(Objects::nonNull).toArray(String[]::new);
+      path = String.format(template, transform).replaceAll("//", "/");
+    }
+    else {
+      path = "";
+    }
+    if (!path.isBlank() && !sftp.mkdirs(path)) {
+      return "Unable to create " + path + " directory";
+    }
+    if (!sftp.put(sourceFile.getName(), sourceFile)) {
+      return "Unable to upload file";
+    }
+    String destFile = path + sourceFile.getName();
+    if (!sourceFile.delete()) {
+      log.error("Unable to delete source file " + sourceFile + " after uploading it to " + destFile);
+    }
+    return "Upload to SFTP as " + destFile;
+  }
+
+  @Nonnull private String removeOldFiles(final long keep, @Nonnull String location) {
     if (keep <= 0) {
       return "";
     }
     final long currentTime = System.currentTimeMillis();
     File dir = new File(location);
-    File[] files = dir.listFiles(path -> path.isFile() && path.canRead() && (currentTime - path.lastModified()) >= keep);
+    File[] files = dir.listFiles(path -> {
+      String pathName = path.getName().toLowerCase();
+      boolean save = pathName.contains("save") || pathName.contains("safe") || pathName.contains("keep");
+      return path.isFile() && path.canRead() && !save && (currentTime - path.lastModified()) >= keep;
+    });
     if (files != null && files.length > 0) {
       StringBuilder message = new StringBuilder().append("\n\tCleaned up files: ");
       String sep = "";
@@ -160,7 +216,7 @@ public class BackupDatabaseJob implements Job {
     return "";
   }
 
-  private String zipFile(String backupFile) throws ZipException {
+  @Nonnull private File zipFile(@Nonnull String backupFile) throws ZipException {
     File sourceFile = new File(backupFile);
     String zipFileName = getNameWithoutExtension(backupFile) + ".zip";
     File file = new File(zipFileName);
@@ -169,7 +225,7 @@ public class BackupDatabaseJob implements Job {
     if (!sourceFile.delete()) {
       log.error("Unable to delete source file " + backupFile + " after zipping it to " + zipFileName);
     }
-    return String.format(", compressed to %s (%s)", zipFileName, humanReadableByteCount(file.length()));
+    return file;
   }
 
   @Nonnull private String getNameWithoutExtension(@Nonnull String fileName) {
@@ -177,7 +233,8 @@ public class BackupDatabaseJob implements Job {
     return (dotIndex == -1) ? fileName : fileName.substring(0, dotIndex);
   }
 
-  private Connection getConnection(Server server, Database database) throws Exception {
+  @Nonnull private Connection getConnection(@Nonnull DatabaseServer server,
+                                            @Nonnull Database database) throws Exception {
     Class.forName("net.sourceforge.jtds.jdbc.Driver");
     String dbUrl = String.format("jdbc:jtds:sqlserver://%s:%d/%s;", server.getHost(), server.getPort(),
                                  database.getName());
@@ -187,16 +244,21 @@ public class BackupDatabaseJob implements Job {
     return DriverManager.getConnection(dbUrl, server.getUser(), server.getPass());
   }
 
-  private void closeConnections(Statement st, Connection con) {
+  private void closeConnections(@Nullable Statement st, @Nullable Connection con) {
     try { if (st  != null) { st.close();  } } catch (SQLException ignored) { }
     try { if (con != null) { con.close(); } } catch (SQLException ignored) { }
   }
 
-  public static String humanReadableByteCount(long bytes) {
+  private static String humanReadableByteCount(long bytes) {
     int unit = 1024;
     if (bytes < unit) return bytes + "B";
     int exp = (int) (Math.log(bytes) / Math.log(unit));
     char pre = "KMGTPE".charAt(exp-1);
     return String.format("%.0f%sB", bytes / Math.pow(unit, exp), pre);
+  }
+
+  private static class Response {
+    boolean fail;
+    String message;
   }
 }

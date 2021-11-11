@@ -1,6 +1,8 @@
 package com.imranzahid.backup;
 
-import com.imranzahid.backup.scheduler.BackupScheduler;
+import com.imranzahid.backup.entity.Databases;
+import com.imranzahid.backup.jobs.BackupDatabaseJob;
+import com.imranzahid.backup.util.BackupUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,12 +26,14 @@ public class BackupMain {
       return;
     }
 
-    if (BackupScheduler.getInstance().hasInit()) {
-      BackupScheduler.getInstance().startScheduler();
+    Databases databases = BackupUtil.parseDatabaseXml();
+    if (databases != null) {
+      new BackupDatabaseJob().execute(databases);
     }
   }
 
   public static void main(String[] args) {
     new BackupMain().init();
+    System.exit(0);
   }
 }

@@ -4,7 +4,6 @@
     <meta>
       <name>BTM-Research 17-1 Backups</name>
       <base>E:\SQLServerMaintenance\Daily\</base>
-      <cron>0 0/1 * 1/1 * ? *</cron>
       <fileformat>
         <template>%s-%s.bak</template>
         <params>
@@ -12,33 +11,34 @@
           <param ordinal="2" pattern="yyyyMMdd-HHmm">TIMESTAMP</param>
         </params>
       </fileformat>
-      <grouping>
-        <group>DB_NAME</group>
-      </grouping>
       <keep>1d</keep>
       <emails />
       <healthcheck />
       <server>
-        <host>daedalus-17-1</host>
-        <port>49170</port>
+        <host>hostname</host>
+        <port>3131</port>
         <instance>SQLSERVER</instance>
-        <user>btmbackups</user>
-        <password>daedalus</password>
+        <user>backups</user>
+        <password>ub3rs3Cr3T</password>
       </server>
+      <sftp>
+        <host>hostname</host>
+        <port>31</port>
+        <user>backups</user>
+        <pass>ub3rs3Cr3T</pass>
+        <path>
+          <template>/%s/%s/</template>
+          <params>
+            <param ordinal="1">NAME</param>
+            <param ordinal="2">DB_NAME</param>
+          </params>
+        </path>
+      </sftp>
     </meta>
 
     <database>
-      <name>BTM-Carolina</name>
-      <location>BTM-SupplyManagement\</location>
-      <compression>zip</compression>
-    </database>
-    <database>
-      <name>btmresearch</name>
-      <location>BTM-Research\</location>
-      <compression>zip</compression>
-      <grouping>
-        <group>none</group>
-      </grouping>
+      <name>BTM-Database</name>
+      <location>BTM-Database\</location>
     </database>
   </databases>
 </backups>

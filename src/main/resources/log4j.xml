@@ -23,10 +23,6 @@
     <level value="warn"/>
   </logger>
 
-  <logger name="org.quartz">
-    <level value="warn"/>
-  </logger>
-
   <root>
     <appender-ref ref="console"/>
     <appender-ref ref="file"/>

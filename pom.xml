@@ -6,7 +6,7 @@
 
   <groupId>com.imranzahid</groupId>
   <artifactId>backups</artifactId>
-  <version>2.1</version>
+  <version>3.0</version>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -17,29 +17,19 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
+        <version>3.8.1</version>
         <configuration>
-          <source>11</source>
-          <target>11</target>
+          <release>11</release>
         </configuration>
       </plugin>
 
-      <!-- Make this jar executable -->
+      <!-- Disable running tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>2.5</version>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.18.1</version>
         <configuration>
-          <excludes>
-            <exclude>**/annotations.xml</exclude>
-          </excludes>
-          <archive>
-            <manifest>
-              <addClasspath>true</addClasspath>
-              <mainClass>com.imranzahid.backup.BackupMain</mainClass>
-              <classpathPrefix>libs/</classpathPrefix>
-            </manifest>
-          </archive>
+          <skipTests>true</skipTests>
         </configuration>
       </plugin>
 
@@ -68,24 +58,14 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.quartz-scheduler</groupId>
-      <artifactId>quartz</artifactId>
-      <version>2.3.2</version>
-    </dependency>
-    <dependency>
-      <groupId>org.quartz-scheduler</groupId>
-      <artifactId>quartz-jobs</artifactId>
-      <version>2.2.1</version>
-    </dependency>
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>1.7.30</version>
+      <version>1.7.32</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-log4j12</artifactId>
-      <version>1.7.28</version>
+      <version>1.7.32</version>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -93,14 +73,9 @@
       <version>2.17.0</version>
     </dependency>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>29.0-jre</version>
-    </dependency>
-    <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
-      <version>2.0.3</version>
+      <version>3.0.2</version>
     </dependency>
     <dependency>
       <groupId>net.sourceforge.jtds</groupId>
@@ -125,12 +100,17 @@
     <dependency>
       <groupId>net.lingala.zip4j</groupId>
       <artifactId>zip4j</artifactId>
-      <version>2.5.0</version>
+      <version>2.9.0</version>
     </dependency>
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>okhttp</artifactId>
-      <version>4.4.0</version>
+      <version>4.9.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.jcraft</groupId>
+      <artifactId>jsch</artifactId>
+      <version>0.1.55</version>
     </dependency>
   </dependencies>
 </project>

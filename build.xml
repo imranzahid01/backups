@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<project name="default" basedir="." default="package">
+  <property environment="env" />
+  <property name="artifactId" value="backups" />
+  <property name="version" value="3.0" />
+  <property name="mainClass" value="com.imranzahid.backup.BackupMain" />
+  <property name="jarfile" value="${artifactId}-${version}.jar" />
+  <property name="targetdir" value="target" />
+
+  <path id="runtime.classpath">
+    <fileset dir="${targetdir}/libs" includes="*.jar" />
+  </path>
+
+  <pathconvert property="manifest.classpath" pathsep=" ">
+    <path refid="runtime.classpath"/>
+    <mapper>
+      <chainedmapper>
+        <flattenmapper/>
+        <globmapper from="*.jar" to="libs/*.jar"/>
+      </chainedmapper>
+    </mapper>
+  </pathconvert>
+
+  <target name="clean">
+    <delete file="${targetdir}/${jarfile}" failonerror="true" />
+  </target>
+
+  <target name="package" depends="clean">
+    <jar destfile="${targetdir}/${jarfile}" basedir="${targetdir}/classes">
+      <manifest>
+        <attribute name="Built-By" value="${user.name}" />
+        <attribute name="Main-Class" value="${mainClass}" />
+        <attribute name="Class-Path" value="${manifest.classpath}" />
+      </manifest>
+    </jar>
+  </target>
+
+  <target name="test">
+    <echo message="${manifest.classpath}" />
+  </target>
+</project>
