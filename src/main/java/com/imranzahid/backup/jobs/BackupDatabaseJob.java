@@ -34,10 +34,17 @@ public class BackupDatabaseJob {
   private static final String FILE_SEPERATOR = File.separator;
 
   public void execute(Databases databases) {
-    Calendar currentTime = Calendar.getInstance();
-    String lastRunOn = SQL_FORMAT.format(currentTime.getTime());
-    log.info(TAG + " is executing for at " + lastRunOn);
+    String executingOn = SQL_FORMAT.format(Calendar.getInstance().getTime());
+    log.info(TAG + " is executing for at " + executingOn);
     HealthCheckUtil healthCheckUtil = HealthCheckUtil.getInstance(databases.getHealthCheckUuid());
+    EmailUtility.newEmail()
+      .to(databases.getEmails())
+      .withSubject("Database backups on " + databases.getName())
+      .withHtmlEmail(Strings.replace(EmailUtility.txtDatabaseBackupStartTemplate,
+          new String[]{"{{serverName}}", "{{startedOn}}"}, new String[]{databases.getName(), executingOn}),
+        Strings.replace(EmailUtility.htmDatabaseBackupStartTemplate,
+          new String[]{"{{serverName}}", "{{startedOn}}"}, new String[]{databases.getName(), executingOn}))
+      .send();
     healthCheckUtil.start();
     Stopwatch stopwatch = Stopwatch.createStarted();
     StringBuilder success = new StringBuilder();
@@ -53,15 +60,26 @@ public class BackupDatabaseJob {
     }
     String message = "Database Backup Job completed in: " +
       stopwatch.stop().elapsed(TimeUnit.MINUTES) + " mins with message:\n";
+    final String finalMessage;
     if (fail.length() > 0) {
-      healthCheckUtil.fail(message + fail + "\n\n" + success);
+      finalMessage = message + fail + "\n\n" + success;
+      healthCheckUtil.fail(finalMessage);
     }
     else {
-      healthCheckUtil.success(message + success);
+      finalMessage = message + success;
+      healthCheckUtil.success(finalMessage);
     }
     try {
       healthCheckUtil.close();
     } catch (IOException ignored) { }
+    EmailUtility.newEmail()
+      .to(databases.getEmails())
+      .withSubject("Database backups on " + databases.getName())
+      .withHtmlEmail(Strings.replace(EmailUtility.txtDatabaseBackupEndTemplate,
+          new String[]{"{{serverName}}", "{{message}}"}, new String[]{databases.getName(), finalMessage}),
+        Strings.replace(EmailUtility.htmDatabaseBackupEndTemplate,
+          new String[]{"{{serverName}}", "{{message}}"}, new String[]{databases.getName(), finalMessage}))
+      .send();
   }
 
   @Nonnull private Response backup(@Nonnull Databases databases, @Nonnull final Database database) {

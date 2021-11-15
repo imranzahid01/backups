@@ -34,6 +34,5 @@ public class BackupMain {
 
   public static void main(String[] args) {
     new BackupMain().init();
-    System.exit(0);
   }
 }
