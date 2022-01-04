@@ -107,6 +107,10 @@ public class BackupUtil {
         Database database = databases.newDatabase(databaseElement.getChildTextNormalize("name"));
         database.setLocation(databaseElement.getChildTextNormalize("location"));
         database.setCompression(databaseElement.getChildTextNormalize("compression"));
+        String upload = databaseElement.getChildTextNormalize("upload");
+        if ("false".equalsIgnoreCase(upload)) {
+          database.setUpload(false);
+        }
         databases.getDatabases().add(database);
       }
     }

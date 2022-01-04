@@ -36,7 +36,6 @@ public class BackupDatabaseJob {
   public void execute(Databases databases) {
     String executingOn = SQL_FORMAT.format(Calendar.getInstance().getTime());
     log.info(TAG + " is executing for at " + executingOn);
-    HealthCheckUtil healthCheckUtil = HealthCheckUtil.getInstance(databases.getHealthCheckUuid());
     EmailUtility.newEmail()
       .to(databases.getEmails())
       .withSubject("Database backups on " + databases.getName())
@@ -45,6 +44,7 @@ public class BackupDatabaseJob {
         Strings.replace(EmailUtility.htmDatabaseBackupStartTemplate,
           new String[]{"{{serverName}}", "{{startedOn}}"}, new String[]{databases.getName(), executingOn}))
       .send();
+    HealthCheckUtil healthCheckUtil = HealthCheckUtil.getInstance(databases.getHealthCheckUuid());
     healthCheckUtil.start();
     Stopwatch stopwatch = Stopwatch.createStarted();
     StringBuilder success = new StringBuilder();
@@ -155,7 +155,7 @@ public class BackupDatabaseJob {
     if (!msg3.isBlank()) log.info(msg3);
     message.append(msg3);
     SftpServer sftpServer = databases.getSftpServer();
-    if (sftpServer != null) {
+    if (database.isUpload() && sftpServer != null) {
       String msg4 = uploadFile(sftpServer, backedupFile, databases.getName(),
                                location.toString(), database.getName());
       log.info(msg4);

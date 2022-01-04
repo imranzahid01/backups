@@ -4,6 +4,7 @@ public class Database {
   private String name;
   private String location;
   private String compression;
+  private boolean upload = true;
 
   public String getName() {
     return name;
@@ -27,5 +28,13 @@ public class Database {
 
   public void setCompression(String compression) {
     this.compression = compression;
+  }
+
+  public boolean isUpload() {
+    return upload;
+  }
+
+  public void setUpload(boolean upload) {
+    this.upload = upload;
   }
 }
