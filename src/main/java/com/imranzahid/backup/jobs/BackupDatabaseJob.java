@@ -203,6 +203,7 @@ public class BackupDatabaseJob {
     if (!sourceFile.delete()) {
       log.error("Unable to delete source file " + sourceFile + " after uploading it to " + destFile);
     }
+    sftp.close();
     return "Upload to SFTP as " + destFile;
   }
 

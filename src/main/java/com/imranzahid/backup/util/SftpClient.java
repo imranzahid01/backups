@@ -6,14 +6,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-public class SftpClient {
+public class SftpClient implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(SftpClient.class);
   private final SftpServer sftpServer;
   private ChannelSftp channelSftp;
+  private Session jschSession;
 
   public SftpClient(@Nonnull SftpServer sftpServer) {
     this.sftpServer = sftpServer;
@@ -25,7 +27,7 @@ public class SftpClient {
     }
     try {
       JSch jsch = new JSch();
-      Session jschSession = jsch.getSession(sftpServer.getUser(), sftpServer.getHost());
+      jschSession = jsch.getSession(sftpServer.getUser(), sftpServer.getHost());
       if (sftpServer.getPort() > 0) {
         jschSession.setPort(sftpServer.getPort());
       }
@@ -88,5 +90,12 @@ public class SftpClient {
       log.error("Unable to upload file " + name, e);
     }
     return false;
+  }
+
+  @Override public void close() {
+    if (channelSftp != null && channelSftp.isConnected()) {
+      channelSftp.disconnect();
+      jschSession.disconnect();
+    }
   }
 }
