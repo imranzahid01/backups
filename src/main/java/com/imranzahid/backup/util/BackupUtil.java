@@ -79,23 +79,54 @@ public class BackupUtil {
     databaseServer.setPass(serverElement.getChildTextNormalize("password"));
 
     Element sftpElement = metaElement.getChild("sftp");
-    SftpServer sftpServer = databases.newSftpServer();
-    sftpServer.setHost(sftpElement.getChildTextNormalize("host"));
-    sftpServer.setPort(sftpElement.getChildTextNormalize("port"));
-    sftpServer.setUser(sftpElement.getChildTextNormalize("user"));
-    sftpServer.setPass(sftpElement.getChildTextNormalize("pass"));
+    if (sftpElement != null) {
+      SftpServer sftpServer = databases.newSftpServer();
+      sftpServer.setEnabled(Boolean.parseBoolean(sftpElement.getAttributeValue("enabled", "true")));
+      sftpServer.setHost(sftpElement.getChildTextNormalize("host"));
+      sftpServer.setPort(sftpElement.getChildTextNormalize("port"));
+      sftpServer.setUser(sftpElement.getChildTextNormalize("user"));
+      sftpServer.setPass(sftpElement.getChildTextNormalize("pass"));
+      String limit = sftpElement.getChildTextNormalize("limit");
+      try {
+        if (limit != null && !limit.isBlank()) {
+          StringBuilder pre = new StringBuilder();
+          char unit = 'B';
+          for (int i = 0; i < limit.length(); i++) {
+            char ch = limit.charAt(i);
+            if (Character.isDigit(ch)) {
+              pre.append(ch);
+              continue;
+            }
+            if (Character.isAlphabetic(ch)) {
+              unit = Character.toUpperCase(ch);
+              break;
+            }
+          }
+          long amount = Long.parseLong(pre.toString());
+          switch (unit) {
+            case 'b' : case 'B' : sftpServer.setLimit(amount); break;
+            case 'k' : case 'K' : sftpServer.setLimit(amount * 1024); break;
+            case 'm' : case 'M' : sftpServer.setLimit(amount * 1024 * 1024); break;
+            case 'g' : case 'G' : sftpServer.setLimit(amount * 1024 * 1024 * 1024); break;
+            case 't' : case 'T' : sftpServer.setLimit(amount * 1024 * 1024 * 1024 * 1024); break;
+          }
+        }
+      } catch (Exception ex) {
+        log.error("Unable to set the limit of " + limit, ex);
+      }
 
-    Element pathElement = sftpElement.getChild("path");
-    FileFormat pathFormat = sftpServer.newPathFormat();
-    pathFormat.setTemplate(pathElement.getChildTextNormalize("template"));
-    /* params */ {
-      Element paramsElement = pathElement.getChild("params");
-      if (paramsElement != null) {
-        List<Element> params = paramsElement.getChildren("param");
-        if (params != null) {
-          for (Element param : params) {
-            pathFormat.addParam(param.getAttributeValue("ordinal", "0"), param.getAttributeValue("pattern", ""),
-                                param.getTextNormalize());
+      Element pathElement = sftpElement.getChild("path");
+      FileFormat pathFormat = sftpServer.newPathFormat();
+      pathFormat.setTemplate(pathElement.getChildTextNormalize("template"));
+      /* params */ {
+        Element paramsElement = pathElement.getChild("params");
+        if (paramsElement != null) {
+          List<Element> params = paramsElement.getChildren("param");
+          if (params != null) {
+            for (Element param : params) {
+              pathFormat.addParam(param.getAttributeValue("ordinal", "0"), param.getAttributeValue("pattern", ""),
+                                  param.getTextNormalize());
+            }
           }
         }
       }

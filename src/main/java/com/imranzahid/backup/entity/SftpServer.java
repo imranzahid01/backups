@@ -1,11 +1,21 @@
 package com.imranzahid.backup.entity;
 
 public class SftpServer {
+  private boolean enabled = true;
   private String host;
   private int port;
   private String user;
   private String pass;
+  private long limit = -1L;
   private FileFormat pathFormat;
+
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  public void setEnabled(boolean enabled) {
+    this.enabled = enabled;
+  }
 
   public String getHost() {
     return host;
@@ -41,6 +51,14 @@ public class SftpServer {
 
   public void setPass(String pass) {
     this.pass = pass;
+  }
+
+  public long getLimit() {
+    return limit;
+  }
+
+  public void setLimit(long limit) {
+    this.limit = limit;
   }
 
   public FileFormat getPathFormat() {

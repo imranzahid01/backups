@@ -3,7 +3,6 @@ package com.imranzahid.backup.jobs;
 import com.imranzahid.backup.entity.*;
 import com.imranzahid.backup.util.*;
 import net.lingala.zip4j.ZipFile;
-import net.lingala.zip4j.exception.ZipException;
 import net.lingala.zip4j.model.ZipParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,11 +154,19 @@ public class BackupDatabaseJob {
     if (!msg3.isBlank()) log.info(msg3);
     message.append(msg3);
     SftpServer sftpServer = databases.getSftpServer();
-    if (database.isUpload() && sftpServer != null) {
-      String msg4 = uploadFile(sftpServer, backedupFile, databases.getName(),
-                               location.toString(), database.getName());
-      log.info(msg4);
-      message.append(". ").append(msg4);
+    if (sftpServer != null && sftpServer.isEnabled()) {
+      long fileSize = backedupFile.length();
+      if (sftpServer.getLimit() > 0 && fileSize > sftpServer.getLimit()) {
+        log.info("File size (" + humanReadableByteCount(fileSize) +
+                 " is greater than SFTP limit of " + humanReadableByteCount(sftpServer.getLimit()));
+        database.setUpload(false);
+      }
+      if (database.isUpload()) {
+        String msg4 = uploadFile(sftpServer, backedupFile, databases.getName(),
+                                 location.toString(), database.getName());
+        log.info(msg4);
+        message.append(". ").append(msg4);
+      }
     }
     return message.toString();
   }
@@ -235,12 +242,13 @@ public class BackupDatabaseJob {
     return "";
   }
 
-  @Nonnull private File zipFile(@Nonnull String backupFile) throws ZipException {
+  @Nonnull private File zipFile(@Nonnull String backupFile) throws IOException {
     File sourceFile = new File(backupFile);
     String zipFileName = getNameWithoutExtension(backupFile) + ".zip";
     File file = new File(zipFileName);
     ZipFile zipFile = new ZipFile(file);
     zipFile.addFile(sourceFile, new ZipParameters());
+    zipFile.close();
     if (!sourceFile.delete()) {
       log.error("Unable to delete source file " + backupFile + " after zipping it to " + zipFileName);
     }

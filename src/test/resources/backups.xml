@@ -21,11 +21,12 @@
         <user>backups</user>
         <password>ub3rs3Cr3T</password>
       </server>
-      <sftp>
+      <sftp enabled="false">
         <host>hostname</host>
         <port>31</port>
         <user>backups</user>
         <pass>ub3rs3Cr3T</pass>
+        <limit>1G</limit>
         <path>
           <template>/%s/%s/</template>
           <params>
