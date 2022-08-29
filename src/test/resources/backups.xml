@@ -40,6 +40,9 @@
     <database>
       <name>BTM-Database</name>
       <location>BTM-Database\</location>
+      <compression>zip</compression>
+      <upload>false</upload>
+      <keep>23h</keep>
     </database>
   </databases>
 </backups>

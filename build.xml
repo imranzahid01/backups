@@ -2,7 +2,7 @@
 <project name="default" basedir="." default="package">
   <property environment="env" />
   <property name="artifactId" value="backups" />
-  <property name="version" value="3.3" />
+  <property name="version" value="3.4" />
   <property name="mainClass" value="com.imranzahid.backup.BackupMain" />
   <property name="jarfile" value="${artifactId}-${version}.jar" />
   <property name="targetdir" value="target" />

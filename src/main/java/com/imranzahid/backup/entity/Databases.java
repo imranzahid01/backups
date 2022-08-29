@@ -1,5 +1,6 @@
 package com.imranzahid.backup.entity;
 
+import com.imranzahid.backup.util.BackupUtil;
 import com.imranzahid.backup.util.Strings;
 
 import java.time.Duration;
@@ -54,37 +55,7 @@ public class Databases {
   }
 
   public long getKeepFor() {
-    if (Strings.isNullOrEmpty(getKeep())) {
-      return -1;
-    }
-    StringBuilder number = new StringBuilder();
-    StringBuilder unit = new StringBuilder();
-    for (int i = 0; i < getKeep().length(); i++) {
-      char ch = getKeep().charAt(i);
-      if (Character.isDigit(ch)) {
-        number.append(ch);
-      }
-      else if (Character.isLetter(ch)) {
-        unit.append(ch);
-      }
-    }
-    Duration duration;
-    try {
-      long num = Long.parseLong(number.toString());
-      switch(unit.toString()) {
-        case "S": case "s": duration = Duration.ofSeconds(num); break;
-        case "m":           duration = Duration.ofMinutes(num); break;
-        case "h": case "H": duration = Duration.ofHours(num); break;
-        case "D": case "d": duration = Duration.ofDays(num); break;
-        case "w": case "W": duration = ChronoUnit.WEEKS.getDuration(); break;
-        case "M":           duration = ChronoUnit.MONTHS.getDuration(); break;
-        case "y": case "Y": duration = ChronoUnit.YEARS.getDuration(); break;
-        default : duration = Duration.ZERO; break;
-      }
-    } catch (NumberFormatException ignored) {
-      duration = Duration.ZERO;
-    }
-    return duration.toMillis();
+    return BackupUtil.getKeepFor(getKeep());
   }
 
   public List<String> getEmails() {

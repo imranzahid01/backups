@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 public class BackupUtil {
@@ -142,8 +144,50 @@ public class BackupUtil {
         if ("false".equalsIgnoreCase(upload)) {
           database.setUpload(false);
         }
+        String keep = databaseElement.getChildTextNormalize("keep");
+        if (Strings.isNullOrEmpty(keep)) {
+          keep = databases.getKeep();
+        }
+        database.setKeep(keep);
         databases.getDatabases().add(database);
       }
     }
+  }
+
+  public static long getKeepFor(@Nullable String keep) {
+    if (Strings.isNullOrEmpty(keep)) {
+      return -1;
+    }
+    StringBuilder number = new StringBuilder();
+    StringBuilder unit = new StringBuilder();
+    for (int i = 0; i < keep.length(); i++) {
+      char ch = keep.charAt(i);
+      if (Character.isDigit(ch)) {
+        number.append(ch);
+      }
+      else if (Character.isLetter(ch)) {
+        unit.append(ch);
+      }
+    }
+    Duration duration;
+    try {
+      long num = Long.parseLong(number.toString());
+      switch(unit.toString()) {
+        case "S": case "s": duration = Duration.ofSeconds(num); break;
+        case "m":           duration = Duration.ofMinutes(num); break;
+        case "h": case "H": duration = Duration.ofHours(num); break;
+        case "D": case "d": duration = Duration.ofDays(num); break;
+        case "w": case "W": duration = Duration.ofSeconds(
+          Math.multiplyExact(num, ChronoUnit.WEEKS.getDuration().getSeconds())); break;
+        case "M":           duration = Duration.ofSeconds(
+          Math.multiplyExact(num, ChronoUnit.MONTHS.getDuration().getSeconds())); break;
+        case "y": case "Y": duration = Duration.ofSeconds(
+          Math.multiplyExact(num, ChronoUnit.YEARS.getDuration().getSeconds())); break;
+        default : duration = Duration.ZERO; break;
+      }
+    } catch (NumberFormatException ignored) {
+      duration = Duration.ZERO;
+    }
+    return duration.toMillis();
   }
 }

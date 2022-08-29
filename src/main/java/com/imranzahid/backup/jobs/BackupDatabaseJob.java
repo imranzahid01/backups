@@ -150,7 +150,7 @@ public class BackupDatabaseJob {
       log.info(msg2);
       message.append(msg2);
     }
-    String msg3 = removeOldFiles(databases.getKeepFor(), base + location);
+    String msg3 = removeOldFiles(database.getKeepFor(), base + location);
     if (!msg3.isBlank()) log.info(msg3);
     message.append(msg3);
     SftpServer sftpServer = databases.getSftpServer();
